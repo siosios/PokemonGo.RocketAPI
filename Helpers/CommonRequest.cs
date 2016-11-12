@@ -101,7 +101,12 @@ namespace PokemonGo.RocketAPI.Helpers
                     RequestType = RequestType.CheckAwardedBadges,
                     RequestMessage = new CheckAwardedBadgesMessage().ToByteString()
                 },
-                GetDownloadSettingsMessageRequest(client)
+                GetDownloadSettingsMessageRequest(client),
+                new Request
+                {
+                    RequestType = RequestType.GetBuddyWalked,
+                    RequestMessage = new GetBuddyWalkedMessage().ToByteString()
+                }
             };
         }
 
@@ -165,6 +170,15 @@ namespace PokemonGo.RocketAPI.Helpers
                         throw new MinimumClientVersionException(client.CurrentApiEmulationVersion, client.MinimumClientVersion);
                 }
             }
+        }
+
+        public static void ProcessCheckChallengeResponse(Client client, CheckChallengeResponse checkChallengeResponse)
+        {
+            if (checkChallengeResponse == null)
+                return;
+
+            if (checkChallengeResponse.ShowChallenge)
+                client.ApiFailure.HandleCaptcha(checkChallengeResponse.ChallengeUrl, client);
         }
 
         public static void Parse(Client client, RequestType requestType, ByteString data)
