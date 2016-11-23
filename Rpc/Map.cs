@@ -25,8 +25,6 @@ namespace PokemonGo.RocketAPI.Rpc
                         <GetMapObjectsResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse,
                             DownloadSettingsResponse, GetBuddyWalkedResponse>> GetMapObjects()
         {
-            #region Messages
-
             var getMapObjectsMessage = new GetMapObjectsMessage
             {
                 CellId = {S2Helper.GetNearbyCellIds(Client.CurrentLongitude, Client.CurrentLatitude)},
@@ -34,30 +32,14 @@ namespace PokemonGo.RocketAPI.Rpc
                 Latitude = Client.CurrentLatitude,
                 Longitude = Client.CurrentLongitude
             };
-
-            var getHatchedEggsMessage = new GetHatchedEggsMessage();
-
-            var getInventoryMessage = new GetInventoryMessage
-            {
-                LastTimestampMs = Client.InventoryLastUpdateTimestamp
-            };
-
-            var checkAwardedBadgesMessage = new CheckAwardedBadgesMessage();
-
-            var downloadSettingsMessage = new DownloadSettingsMessage
-            {
-                Hash = Client.SettingsHash
-            };
-
-            #endregion
-
+            
             var getMapObjectsRequest = new Request
             {
                 RequestType = RequestType.GetMapObjects,
                 RequestMessage = getMapObjectsMessage.ToByteString()
             };
             
-            var request = GetRequestBuilder().GetRequestEnvelope(CommonRequest.FillRequest(getMapObjectsRequest, Client));
+            var request = await GetRequestBuilder().GetRequestEnvelope(CommonRequest.FillRequest(getMapObjectsRequest, Client));
 
             Tuple<GetMapObjectsResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse> response =
                 await

@@ -28,11 +28,11 @@ namespace PokemonGo.RocketAPI
         public Misc Misc;
         public Player Player;
         string CaptchaToken;
-
-        public Client(ISettings settings, IApiFailureStrategy apiFailureStrategy)
+        public KillSwitchTask KillswitchTask;
+        
+        public Client(ISettings settings)
         {
             Settings = settings;
-            ApiFailure = apiFailureStrategy;
             Proxy = InitProxy();
             PokemonHttpClient = new PokemonHttpClient();
             Login = new Rpc.Login(this);
@@ -43,6 +43,7 @@ namespace PokemonGo.RocketAPI
             Fort = new Fort(this);
             Encounter = new Encounter(this);
             Misc = new Misc(this);
+            KillswitchTask = new KillSwitchTask(this);
 
             Player.SetCoordinates(Settings.DefaultLatitude, Settings.DefaultLongitude, Settings.DefaultAltitude);
 
@@ -84,8 +85,7 @@ namespace PokemonGo.RocketAPI
         {
             CaptchaToken = token;
         }
-
-        public IApiFailureStrategy ApiFailure { get; set; }
+        
         public ISettings Settings { get; }
         public string AuthToken { get; set; }
 
@@ -106,7 +106,11 @@ namespace PokemonGo.RocketAPI
         public long StartTime { get; set; }
 
         public Version CurrentApiEmulationVersion { get; set; }
-        public Version MinimumClientVersion { get; set; }
+        public Version MinimumClientVersion { get; set; }        // This is version from DownloadSettings, but after login is updated from https://pgorelease.nianticlabs.com/plfe/version
+
+        //public POGOLib.Net.Session AuthSession { get; set; }
+        public POGOLib.Official.LoginProviders.ILoginProvider LoginProvider { get; set; }
+        public POGOLib.Official.Net.Authentication.Data.AccessToken AccessToken { get; set; }
 
         private WebProxy InitProxy()
         {
@@ -122,7 +126,26 @@ namespace PokemonGo.RocketAPI
 
         public bool CheckCurrentVersionOutdated()
         {
+            if (MinimumClientVersion == null)
+                return false;
+
             return CurrentApiEmulationVersion < MinimumClientVersion;
+        }
+
+        public static Version GetMinimumRequiredVersionFromUrl()
+        {
+            try
+            {
+                var client = new WebClient();
+                client.Encoding = System.Text.Encoding.UTF8;
+
+                var version = client.DownloadString("https://pgorelease.nianticlabs.com/plfe/version").Replace("\u0006", "").Replace("\n", "");
+                return new Version(version);
+            }
+            catch(Exception)
+            {
+            }
+            return null;
         }
     }
 }

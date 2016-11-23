@@ -80,6 +80,18 @@ namespace PokemonGo.RocketAPI.Helpers
             };
         }
 
+        public static Request GetVerifyChallenge(string token)
+        {
+            return new Request
+            {
+                RequestType = RequestType.VerifyChallenge,
+                RequestMessage = new VerifyChallengeMessage()
+                {
+                    Token = token
+                }.ToByteString()
+            };
+        }
+
         public static Request[] FillRequest(Request request, Client client)
         {
             return new[]
@@ -178,7 +190,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 return;
 
             if (checkChallengeResponse.ShowChallenge)
-                client.ApiFailure.HandleCaptcha(checkChallengeResponse.ChallengeUrl, client);
+                throw new CaptchaException(checkChallengeResponse.ChallengeUrl);
         }
 
         public static void Parse(Client client, RequestType requestType, ByteString data)

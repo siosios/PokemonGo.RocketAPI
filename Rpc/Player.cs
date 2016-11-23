@@ -7,6 +7,8 @@ using POGOProtos.Enums;
 using POGOProtos.Networking.Requests;
 using POGOProtos.Networking.Requests.Messages;
 using POGOProtos.Networking.Responses;
+using System;
+using PokemonGo.RocketAPI.Helpers;
 
 #endregion
 
@@ -29,7 +31,7 @@ namespace PokemonGo.RocketAPI.Rpc
                 Longitude = Client.CurrentLongitude
             };
 
-            var updatePlayerLocationRequestEnvelope = GetRequestBuilder().GetRequestEnvelope(new Request[] {
+            var updatePlayerLocationRequestEnvelope = await GetRequestBuilder().GetRequestEnvelope(new Request[] {
                 new Request
                 {
                     RequestType = RequestType.PlayerUpdate,
@@ -54,7 +56,30 @@ namespace PokemonGo.RocketAPI.Rpc
 
         public async Task<GetPlayerResponse> GetPlayer()
         {
-            return await PostProtoPayload<Request, GetPlayerResponse>(RequestType.GetPlayer, new GetPlayerMessage());
+            var getPlayerRequest = new Request
+            {
+                RequestType = RequestType.GetPlayer,
+                RequestMessage = new GetPlayerMessage().ToByteString()
+            };
+
+            var request = await GetRequestBuilder().GetRequestEnvelope(CommonRequest.FillRequest(getPlayerRequest, Client));
+
+            Tuple<GetPlayerResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse> response =
+                await
+                    PostProtoPayload
+                        <Request, GetPlayerResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse,
+                            CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse>(request);
+
+            GetInventoryResponse getInventoryResponse = response.Item4;
+            CommonRequest.ProcessGetInventoryResponse(Client, getInventoryResponse);
+
+            DownloadSettingsResponse downloadSettingsResponse = response.Item6;
+            CommonRequest.ProcessDownloadSettingsResponse(Client, downloadSettingsResponse);
+
+            CheckChallengeResponse checkChallengeResponse = response.Item2;
+            CommonRequest.ProcessCheckChallengeResponse(Client, checkChallengeResponse);
+
+            return response.Item1;
         }
 
         public async Task<GetPlayerProfileResponse> GetPlayerProfile(string playerName)
@@ -138,6 +163,11 @@ namespace PokemonGo.RocketAPI.Rpc
                     {
                         Team = teamColor
                     });
+        }
+
+        public async Task<VerifyChallengeResponse> VerifyChallenge(string token)
+        {
+            return await PostProtoPayload<Request, VerifyChallengeResponse>(RequestType.VerifyChallenge, CommonRequest.GetVerifyChallenge(token));
         }
     }
 }
