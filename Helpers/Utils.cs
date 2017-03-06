@@ -1,11 +1,7 @@
 ﻿#region using directives
 
 using System;
-using System.Collections.Generic;
-using System.Data.HashFunction;
-using System.IO;
 using System.Linq;
-using System.Net;
 
 #endregion
 
@@ -49,6 +45,13 @@ namespace PokemonGo.RocketAPI.Helpers
         {
             ulong seed = HashBuilder.Hash64(authTicket);
             return HashBuilder.Hash64Salt64(hashRequest, seed);
+        }
+        public static ulong CastToUnsigned(long number)
+        {
+            unchecked
+            {
+                return (ulong)number;
+            }
         }
     }
 }

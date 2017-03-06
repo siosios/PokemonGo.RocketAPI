@@ -9,6 +9,8 @@ using PokemonGo.RocketAPI.Exceptions;
 using POGOProtos.Networking.Envelopes;
 using System.Collections.Concurrent;
 using System.Threading;
+using Newtonsoft.Json;
+using PokemonGo.RocketAPI.Helpers;
 
 #endregion
 
@@ -43,8 +45,8 @@ namespace PokemonGo.RocketAPI.Extensions
 
             ResponseEnvelope response = await PerformThrottledRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope);
 
-            if (response.Returns.Count != requestEnvelope.Requests.Count)
-                throw new InvalidResponseException();
+            if (response== null || (response.Returns.Count != requestEnvelope.Requests.Count))
+                throw new InvalidResponseException($"Error with API request type: {requestEnvelope.Requests[0].RequestType}");
 
             for (var i = 0; i < responseTypes.Length; i++)
             {
@@ -63,7 +65,7 @@ namespace PokemonGo.RocketAPI.Extensions
             ResponseEnvelope response = await PerformThrottledRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope);
 
             if (response.Returns.Count != requestEnvelope.Requests.Count)
-                throw new InvalidResponseException();
+                throw new InvalidResponseException($"Error with API request type: {requestEnvelope.Requests[0].RequestType}");
 
             //Decode payload
             //todo: multi-payload support
@@ -79,8 +81,11 @@ namespace PokemonGo.RocketAPI.Extensions
             RequestEnvelope requestEnvelope) where TRequest : IMessage<TRequest>
         {
             // Check killswitch from url before making API calls.
-            if (apiClient.CheckCurrentVersionOutdated())
-                throw new MinimumClientVersionException(apiClient.CurrentApiEmulationVersion, apiClient.MinimumClientVersion);
+            if (!apiClient.Settings.UseLegacyAPI)
+            {
+                if (apiClient.CheckCurrentVersionOutdated())
+                    throw new MinimumClientVersionException(apiClient.CurrentApiEmulationVersion, apiClient.MinimumClientVersion);
+            }
 
             //Encode payload and put in envelop, then send
             var data = requestEnvelope.ToByteString();
@@ -91,26 +96,37 @@ namespace PokemonGo.RocketAPI.Extensions
             var codedStream = new CodedInputStream(responseData);
             ResponseEnvelope serverResponse = new ResponseEnvelope();
             serverResponse.MergeFrom(codedStream);
-            
+
+            // Process Platform8Response
+            CommonRequest.ProcessPlatform8Response(apiClient, serverResponse);
+
             if (!string.IsNullOrEmpty(serverResponse.ApiUrl))
                 apiClient.ApiUrl = "https://" + serverResponse.ApiUrl + "/rpc";
 
             if (serverResponse.AuthTicket != null)
-                apiClient.AccessToken.AuthTicket = serverResponse.AuthTicket;
+            {
+                if (serverResponse.AuthTicket.ExpireTimestampMs > (ulong)Utils.GetTime(true))
+                {
+                    apiClient.AuthTicket = serverResponse.AuthTicket;
+                }
+                else
+                {
+                    // Expired auth ticket.
+                    apiClient.AuthTicket = null;
+                }
+            }
 
             switch (serverResponse.StatusCode)
             {
                 case ResponseEnvelope.Types.StatusCode.InvalidAuthToken:
-                    apiClient.AccessToken.Expire();
-                    await Rpc.Login.Reauthenticate(apiClient);
-                    Rpc.Login.SaveAccessToken(apiClient.AccessToken);
-                    throw new AccessTokenExpiredException();
+                    await apiClient.RequestBuilder.RegenerateRequestEnvelopeWithNewAccessToken(requestEnvelope);
+                    return await PerformRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope);
                 case ResponseEnvelope.Types.StatusCode.Redirect:
                     // 53 means that the api_endpoint was not correctly set, should be at this point, though, so redo the request
                     return await PerformRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope);
                 case ResponseEnvelope.Types.StatusCode.BadRequest:
                     // Your account may be banned! please try from the official client.
-                    throw new LoginFailedException("Your account may be banned! please try from the official client.");
+                    throw new APIBadRequestException("BAD REQUEST \r\n" + JsonConvert.SerializeObject(requestEnvelope));
                 case ResponseEnvelope.Types.StatusCode.Unknown:
                     break;
                 case ResponseEnvelope.Types.StatusCode.Ok:

@@ -3,9 +3,9 @@ using System.Linq;
 using System.Collections.ObjectModel;
 using PokemonGo.RocketAPI.Helpers.Shuffle;
 
-namespace PokemonGo.RocketAPI.Helpers
+namespace PokemonGo.RocketAPI.Encrypt
 {
-    public static class PCrypt
+    public class LegacyCrypt : ICrypt
     {
         private static byte rot18(byte val, int bits)
         {
@@ -43,11 +43,21 @@ namespace PokemonGo.RocketAPI.Helpers
 
         private static byte make_integrity_byte(byte b)
         {
+            //byte tmp = (byte)(b & 0xf3);
+            //return (byte)(((~tmp & 0x67) | (tmp & 0x98)) ^ 0x77 | (tmp & 0x10));
+
             byte tmp = (byte)((b ^ 0x0c) & b);
             return (byte)(((~tmp & 0x67) | (tmp & 0x98)) ^ 0x6f | (tmp & 0x08));
         }
 
-        public static byte[] Encrypt(byte[] input, uint ms)
+        //private static byte makeIntegrityByte(byte rand)
+        //{
+        //    char lastbyte = rand->rand();
+        //    char tmp = lastbyte & 0xf3;
+        //    return ((~tmp & 0x67) | (tmp & 0x98)) ^ 0x77 | (tmp & 0x10);
+        //}
+
+        public byte[] Encrypt(byte[] input, uint ms)
         {
             CipherText ct = new CipherText(input, ms);
             byte[] iv = cipher8_from_rand(ref ms);
@@ -69,7 +79,7 @@ namespace PokemonGo.RocketAPI.Helpers
         }
 
         //this returns an empty buffer if error
-        public static byte[] Decrypt(byte[] input, out int length)
+        public byte[] Decrypt(byte[] input, out int length)
         {
             int version, len = input.Length;
             if (len < 261) { length = 0; return new byte[] { }; }
@@ -183,6 +193,7 @@ namespace PokemonGo.RocketAPI.Helpers
                     offset += content[i].Length;
                 }
                 ret[ret.Length - 1] = make_integrity_byte(gen_rand(ref ms));
+                //ret[ret.Length - 1] = make_integrity_byte(ret[ret.Length-1]);
                 return ret;
             }
         }
