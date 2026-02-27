@@ -1,66 +1,75 @@
 ﻿using System;
 using System.Collections.Generic;
+using POGOProtos.Networking.Envelopes;
 
 namespace PokemonGo.RocketAPI.Helpers
 {
     public static class DeviceInfoHelper
     {
-        private static string[][] IosDeviceInfo = new string[][]
+        private static readonly string[][] IosDeviceInfo = new string[][]
             {
-                new string[] {"iPad3,1", "iPad", "J1AP"},
-                new string[] {"iPad3,2", "iPad", "J2AP"},
-                new string[] {"iPad3,3", "iPad", "J2AAP"},
-                new string[] {"iPad3,4", "iPad", "P101AP"},
-                new string[] {"iPad3,5", "iPad", "P102AP"},
-                new string[] {"iPad3,6", "iPad", "P103AP"},
+                /*
+                 * Not sure for models iPad for emulated kernel darwin/17.2.0
+                 * 
+                new string[] {"iPad3,1", "iPad", "MC707"},
+                new string[] {"iPad3,2", "iPad", "MC756"},
+                new string[] {"iPad3,3", "iPad", "MD368"},
+                new string[] {"iPad3,4", "iPad", "ME392"},
+                new string[] {"iPad3,5", "iPad", "ME400"},
+                new string[] {"iPad3,6", "iPad", "ME410"},
 
-                new string[] {"iPad4,1", "iPad", "J71AP"},
-                new string[] {"iPad4,2", "iPad", "J72AP"},
-                new string[] {"iPad4,3", "iPad", "J73AP"},
-                new string[] {"iPad4,4", "iPad", "J85AP"},
-                new string[] {"iPad4,5", "iPad", "J86AP"},
-                new string[] {"iPad4,6", "iPad", "J87AP"},
-                new string[] {"iPad4,7", "iPad", "J85mAP"},
-                new string[] {"iPad4,8", "iPad", "J86mAP"},
-                new string[] {"iPad4,9", "iPad", "J87mAP"},
+                new string[] {"iPad4,1", "iPad", "ME906"},
+                new string[] {"iPad4,2", "iPad", "MF019"},
+                new string[] {"iPad4,3", "iPad", "MF236"},
 
-                new string[] {"iPad5,1", "iPad", "J96AP"},
-                new string[] {"iPad5,2", "iPad", "J97AP"},
-                new string[] {"iPad5,3", "iPad", "J81AP"},
-                new string[] {"iPad5,4", "iPad", "J82AP"},
+                new string[] {"iPad5,3", "iPad", "MH1J2"},
+                new string[] {"iPad5,4", "iPad", "MH2D2"},
 
-                new string[] {"iPad6,7", "iPad", "J98aAP"},
-                new string[] {"iPad6,8", "iPad", "J99aAP"},
+                new string[] {"iPad6,7", "iPad", "ML0V2"},
+                new string[] {"iPad6,8", "iPad", "ML2N2"},
 
-                new string[] {"iPad7,1", "iPad", "N102AP"},
+                new string[] {"iPad7,1", "iPad", "MPL12"},
+                 *
+                 * Not compatible to emulated kernel Darwin/17.2.0
+                 * 
+                new string[] {"iPhone5,1", "iPhone", "MD642"},
+                new string[] {"iPhone5,2", "iPhone", "MD662"},
+                new string[] {"iPhone5,3", "iPhone", "MF134"},
+                new string[] {"iPhone5,4", "iPhone", "MF154"},
 
-                new string[] {"iPhone5,1", "iPhone", "N41AP"},
-                new string[] {"iPhone5,2", "iPhone", "N42AP"},
-                new string[] {"iPhone5,3", "iPhone", "N48AP"},
-                new string[] {"iPhone5,4", "iPhone", "N49AP"},
+                new string[] {"iPhone6,1", "iPhone", "ME304"},
+                new string[] {"iPhone6,2", "iPhone", "ME440"},
 
-                new string[] {"iPhone6,1", "iPhone", "N51AP"},
-                new string[] {"iPhone6,2", "iPhone", "N53AP"},
+                new string[] {"iPhone7,1", "iPhone", "MGAF2"},
+                new string[] {"iPhone7,2", "iPhone", "MG3G2"},
+                */
 
-                new string[] {"iPhone7,1", "iPhone", "N56AP"},
-                new string[] {"iPhone7,2", "iPhone", "N61AP"},
+                new string[] {"iPhone8,1", "iPhone", "N71AP"},   // 6s
+                new string[] {"iPhone8,1", "iPhone", "N71mAP"},  // 6s
+                new string[] {"iPhone8,2", "iPhone", "N66AP"},   // 6s plus
+                new string[] {"iPhone8,2", "iPhone", "N66mAP"},  // 6s plus
+                new string[] {"iPhone8,4", "iPhone", "N69AP"},   // SE
+                new string[] {"iPhone8,4", "iPhone", "N69uAP"},  // SE
 
-                new string[] {"iPhone8,1", "iPhone", "N71AP"},
-                new string[] {"iPhone8,2", "iPhone", "N66AP"},
-                new string[] {"iPhone8,4", "iPhone", "N69AP"},
+                new string[] {"iPhone9,1", "iPhone", "D10AP"},   // 7
+                new string[] {"iPhone9,2", "iPhone", "D11AP"},   // 7 plus
+                new string[] {"iPhone9,3", "iPhone", "D101AP"},  // 7
+                new string[] {"iPhone9,4", "iPhone", "D111AP"},  // 7 plus
 
-                new string[] {"iPhone9,1", "iPhone", "D10AP"},
-                new string[] {"iPhone9,2", "iPhone", "D11AP"},
-                new string[] {"iPhone9,3", "iPhone", "D101AP"},
-                new string[] {"iPhone9,4", "iPhone", "D111AP"}
+                new string[] {"iPhone10,1", "iPhone", "D20AP"},  // 8 
+                new string[] {"iPhone10,2", "iPhone", "D21AP"},  // 8 plus
+                new string[] {"iPhone10,3", "iPhone", "D22AP"},  // X 
+                new string[] {"iPhone10,4", "iPhone", "D201AP"}, // 8 
+                new string[] {"iPhone10,5", "iPhone", "D211AP"}, // 8 plus
+                new string[] {"iPhone10,6", "iPhone", "D221AP"}  // X 
             };
 
-        private static string[] IosVersions = { "8.1.1", "8.1.2", "8.1.3", "8.2", "8.3", "8.4", "8.4.1", "9.0", "9.0.1", "9.0.2", "9.1", "9.2", "9.2.1", "9.3", "9.3.1", "9.3.2", "9.3.3", "9.3.4", "10.2", "10.2.1" };
+        private static readonly string[] IosVersions = { /* not more supported "8.1.1", "8.1.2", "8.1.3", "8.2", "8.3", "8.4", "8.4.1",*/ "9.0", "9.0.1", "9.0.2", "9.1", "9.2", "9.2.1", "9.3", "9.3.1", "9.3.2", "9.3.3", "9.3.4", "10.2", "10.2.1", "10.3", "10.3.1", "10.3.3", "11.0.0", "11.1.0", "11.2.0" };
 
         public static string BytesToHex(byte[] bytes)
         {
-            char[] hexArray = "0123456789abcdef".ToCharArray();
-            char[] hexChars = new char[bytes.Length * 2];
+            var hexArray = "0123456789abcdef".ToCharArray();
+            var hexChars = new char[bytes.Length * 2];
             for (int index = 0; index < bytes.Length; index++)
             {
                 int var = bytes[index] & 0xFF;
@@ -70,32 +79,35 @@ namespace PokemonGo.RocketAPI.Helpers
             return new string(hexChars).ToLower();
         }
 
-        public static DeviceInfo GetRandomIosDevice()
+        public static Signature.Types.DeviceInfo GetRandomIosDevice()
         {
-            DeviceInfo deviceInfo = new DeviceInfo();
+            var deviceInfo = new Signature.Types.DeviceInfo();
 
-            // iOS device id (UDID) are 16 bytes long.
-            var bytes = new byte[16];
-            new Random().NextBytes(bytes);
-            var deviceId = BytesToHex(bytes);
+            // iOS device id (UDID) are 16 bytes long. <<-- WRONG see that https://www.theiphonewiki.com/wiki/UDID
+            // Must have 40 hex digits.
+            // var deviceId = new Random().NextHexNumber(40).ToLower();	
+            // but pogodev says 32 hex digits.		
+            var deviceId = new Random().NextHexNumber(32).ToLower();
 
             deviceInfo.DeviceId = deviceId;
-            deviceInfo.FirmwareType = IosVersions[new Random().Next(IosVersions.Length)];
+            //PokemonGo.RocketAPI kernel emulated is lasted Darwin/17.2.0 according iOS 11.1.0
+            //deviceInfo.FirmwareType = IosVersions[new Random().Next(IosVersions.Length)];
+            deviceInfo.FirmwareType = "11.2.0"; // force use lasted iOS
             string[] device = IosDeviceInfo[(new Random()).Next(IosDeviceInfo.Length)];
             deviceInfo.DeviceModelBoot = device[0];
             deviceInfo.DeviceModel = device[1];
 
             deviceInfo.HardwareModel = device[2];
-            deviceInfo.FirmwareBrand = "iPhone OS";
+            deviceInfo.FirmwareBrand = (device[1] == "iPhone" ? "iOS" : "iPhone OS");
             deviceInfo.DeviceBrand = "Apple";
             deviceInfo.HardwareManufacturer = "Apple";
 
             return deviceInfo;
         }
 
-        public static Dictionary<string, DeviceInfo> AndroidDeviceInfoSets = new Dictionary<string, DeviceInfo>() {
+        public static Dictionary<string, Signature.Types.DeviceInfo> AndroidDeviceInfoSets = new Dictionary<string, Signature.Types.DeviceInfo>() {
             { "lg-optimus-g",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "geehrc",
                     AndroidBootloader = "MAKOZ10f",
@@ -112,7 +124,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "nexus7gen2",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "flo",
                     AndroidBootloader = "FLO-04.07",
@@ -129,7 +141,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "nexus7gen1",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "grouper",
                     AndroidBootloader = "4.23",
@@ -146,7 +158,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "htc10",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "msm8996",
                     AndroidBootloader = "1.0.0.0000",
@@ -163,7 +175,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "galaxy6",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "universal7420",
                     AndroidBootloader = "G920FXXU3DPEK",
@@ -180,7 +192,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "galaxy-s5-gold",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "MSM8974",
                     AndroidBootloader = "G900FXXU1CPEH",
@@ -197,7 +209,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "lg-optimus-f6",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "f6t",
                     AndroidBootloader = "1.0.0.0000",
@@ -214,7 +226,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "nexus-5x",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "bullhead",
                     AndroidBootloader = "BHZ10k",
@@ -231,7 +243,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "galaxy-s7-edge",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "msm8996",
                     AndroidBootloader = "G935TUVU3APG1",
@@ -248,7 +260,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "xperia-z5",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "msm8994",
                     AndroidBootloader = "s1",
@@ -265,7 +277,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "galaxy-s4",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "MSM8960",
                     AndroidBootloader = "I337MVLUGOH1",
@@ -282,7 +294,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "nexus-6p",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "angler",
                     AndroidBootloader = "angler-03.52",
@@ -299,7 +311,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "sony-z3-compact",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "MSM8974",
                     AndroidBootloader = "s1",
@@ -316,7 +328,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "galaxy-tab3",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "smdk4x12",
                     AndroidBootloader = "T310UEUCOI1",
@@ -334,7 +346,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "nexus5",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "hammerhead",
                     AndroidBootloader = "HHZ20b",
@@ -352,7 +364,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "galaxy-note-edge",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "APQ8084",
                     AndroidBootloader = "N915W8VLU1CPE2",
@@ -369,7 +381,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "nexus4-chroma",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "MAKO",
                     AndroidBootloader = "MAKOZ30f",
@@ -386,7 +398,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "yureka",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "MSM8916",
                     AndroidBootloader = "tomato-12-gf7e8024",
@@ -403,7 +415,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "note3",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "MSM8974",
                     AndroidBootloader = "N900PVPUEOK2",
@@ -420,7 +432,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 }
             },
             { "galaxy-tab-s84",
-                new DeviceInfo()
+                new Signature.Types.DeviceInfo()
                 {
                     AndroidBoardName = "universal5420",
                     AndroidBootloader = "T705XXU1BOL2",
@@ -436,7 +448,6 @@ namespace PokemonGo.RocketAPI.Helpers
                     HardwareModel = "SM-T705"
                 }
             },
-
         };
     }
 }

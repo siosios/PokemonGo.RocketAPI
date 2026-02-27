@@ -1,4 +1,4 @@
-﻿#region using directives
+#region using directives
 
 using System;
 using System.Threading.Tasks;
@@ -11,6 +11,9 @@ using Newtonsoft.Json;
 using System.Threading;
 using PokemonGo.RocketAPI.LoginProviders;
 using PokemonGo.RocketAPI.Authentication.Data;
+using POGOProtos.Enums;
+using System.Collections.Generic;
+using Google.Protobuf.Collections;
 
 #endregion
 
@@ -20,14 +23,14 @@ namespace PokemonGo.RocketAPI.Rpc
 
     public class Login : BaseRpc
     {
-        private static Semaphore ReauthenticateMutex { get; } = new Semaphore(1, 1);
+        private Semaphore ReauthenticateMutex { get; } = new Semaphore(1, 1);
         public Login(Client client) : base(client)
         {
             Client.LoginProvider = SetLoginType(client.Settings);
-            Client.ApiUrl = Resources.RpcUrl;
+            Client.ApiUrl = Constants.RpcUrl;
         }
 
-        private static ILoginProvider SetLoginType(ISettings settings)
+        private ILoginProvider SetLoginType(ISettings settings)
         {
             switch (settings.AuthType)
             {
@@ -39,16 +42,16 @@ namespace PokemonGo.RocketAPI.Rpc
                     throw new ArgumentOutOfRangeException(nameof(settings.AuthType), "Unknown AuthType");
             }
         }
-        
-        private static bool IsValidAccessToken(AccessToken accessToken)
+
+        private bool IsValidAccessToken()
         {
-            if (accessToken == null || string.IsNullOrEmpty(accessToken.Token) || accessToken.IsExpired)
+            if (Client.AccessToken == null || string.IsNullOrEmpty(Client.AccessToken.Token) || Client.AccessToken.IsExpired)
                 return false;
 
             return true;
         }
-        
-        public static async Task<AccessToken> GetValidAccessToken(Client client, bool forceRefresh = false, bool isCached = false)
+
+        public async Task<AccessToken> GetValidAccessToken(bool forceRefresh = false, bool isCached = false)
         {
             try
             {
@@ -56,18 +59,18 @@ namespace PokemonGo.RocketAPI.Rpc
 
                 if (forceRefresh)
                 {
-                    client.AccessToken.Expire();
+                    Client.AccessToken.Expire();
                     if (isCached)
-                        DeleteSavedAccessToken(client);
+                        DeleteSavedAccessToken();
                 }
 
-                if (IsValidAccessToken(client.AccessToken))
-                    return client.AccessToken;
-                
+                if (IsValidAccessToken())
+                    return Client.AccessToken;
+
                 // If we got here then access token is expired or not loaded into memory.
                 if (isCached)
                 {
-                    var loginProvider = client.LoginProvider;
+                    var loginProvider = Client.LoginProvider;
                     var cacheDir = Path.Combine(Directory.GetCurrentDirectory(), "Cache");
                     var fileName = Path.Combine(cacheDir, $"{loginProvider.UserId}-{loginProvider.ProviderId}.json");
 
@@ -80,14 +83,14 @@ namespace PokemonGo.RocketAPI.Rpc
 
                         if (!accessToken.IsExpired)
                         {
-                            client.AccessToken = accessToken;
+                            Client.AccessToken = accessToken;
                             return accessToken;
                         }
                     }
                 }
 
-                await Reauthenticate(client, isCached);
-                return client.AccessToken;
+                await Reauthenticate(isCached).ConfigureAwait(false);
+                return Client.AccessToken;
             }
             finally
             {
@@ -95,36 +98,36 @@ namespace PokemonGo.RocketAPI.Rpc
             }
         }
 
-        private static void SaveAccessToken(AccessToken accessToken)
+        private void SaveAccessToken()
         {
-            if (!IsValidAccessToken(accessToken))
+            if (!IsValidAccessToken())
                 return;
 
-            var fileName = Path.Combine(Directory.GetCurrentDirectory(), "Cache", $"{accessToken.Uid}.json");
+            var fileName = Path.Combine(Directory.GetCurrentDirectory(), "Cache", $"{Client.AccessToken.Uid}.json");
 
-            File.WriteAllText(fileName, JsonConvert.SerializeObject(accessToken, Formatting.Indented));
+            File.WriteAllText(fileName, JsonConvert.SerializeObject(Client.AccessToken, Formatting.Indented));
         }
 
-        private static void DeleteSavedAccessToken(Client client)
+        private void DeleteSavedAccessToken()
         {
             var cacheDir = Path.Combine(Directory.GetCurrentDirectory(), "Cache");
-            var fileName = Path.Combine(cacheDir, $"{client.AccessToken?.Uid}-{client.LoginProvider.ProviderId}.json");
+            var fileName = Path.Combine(cacheDir, $"{Client.AccessToken?.Uid}-{Client.LoginProvider.ProviderId}.json");
             if (File.Exists(fileName))
                 File.Delete(fileName);
         }
 
-        private static async Task Reauthenticate(Client client, bool isCached)
+        private async Task Reauthenticate(bool isCached)
         {
             var tries = 0;
-            while (!IsValidAccessToken(client.AccessToken))
+            while (!IsValidAccessToken())
             {
                 // If expired, then we always delete the saved access token if it exists.
                 if (isCached)
-                    DeleteSavedAccessToken(client);
+                    DeleteSavedAccessToken();
 
                 try
                 {
-                    client.AccessToken = await client.LoginProvider.GetAccessToken();
+                    Client.AccessToken = await Client.LoginProvider.GetAccessToken().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -132,22 +135,22 @@ namespace PokemonGo.RocketAPI.Rpc
 
                     if (ex.Message.Contains("15 minutes")) throw new PtcLoginException(ex.Message);
 
-                    if (ex.Message.Contains("You have to log into an browser")) throw new GoogleTwoFactorException(ex.Message);
+                    if (ex.Message.Contains("You have to log into a browser")) throw new GoogleTwoFactorException(ex.Message);
                     //Logger.Error($"Reauthenticate exception was catched: {exception}");
                 }
                 finally
                 {
-                    if (!IsValidAccessToken(client.AccessToken))
+                    if (!IsValidAccessToken())
                     {
                         var sleepSeconds = Math.Min(60, ++tries * 5);
                         //Logger.Error($"Reauthentication failed, trying again in {sleepSeconds} seconds.");
-                        await Task.Delay(TimeSpan.FromMilliseconds(sleepSeconds * 1000));
+                        await Task.Delay(TimeSpan.FromMilliseconds(sleepSeconds * 1000)).ConfigureAwait(false);
                     }
                     else
                     {
                         // We have successfully refreshed the token so save it.
                         if (isCached)
-                            SaveAccessToken(client.AccessToken);
+                            SaveAccessToken();
                     }
 
                     if (tries == 5)
@@ -160,22 +163,70 @@ namespace PokemonGo.RocketAPI.Rpc
 
         public async Task<GetPlayerResponse> DoLogin()
         {
+            Client.Reset();
+
             // Don't wait for background start of killswitch.
             // jjskuld - Ignore CS4014 warning for now.
 #pragma warning disable 4014
             Client.KillswitchTask.Start();
 #pragma warning restore 4014
 
-            Client.StartTime = Utils.GetTime(true);
-            Client.RequestBuilder = new RequestBuilder(Client, Client.Settings);
+            GetPlayerResponse player = await Client.Player.GetPlayer(false, true).ConfigureAwait(false); // Set false because initial GetPlayer does not use common requests.
+            if (player.Warn)
+            {
+                APIConfiguration.Logger.LogFlaggedInit($"This account {Client.Player.PlayerData.Username} seems to be flagged, it is recommended to not use bot on this account for now!");
+                if (Client.Settings.AutoExitBotIfAccountFlagged)
+                {
+                    APIConfiguration.Logger.LogFlaggedInit("\n\rThe bot will close in 10 seconds.");
+                    Thread.Sleep(10000);
+                    Environment.Exit(0);
+                }
+            }
 
-            var player = await Client.Player.GetPlayer(false); // Set false because initial GetPlayer does not use common requests.
+            if (player.Banned)
+            {
+                APIConfiguration.Logger.LogErrorInit("This account seems to be banned");
+            }
 
-            await Client.Download.GetRemoteConfigVersion();
-            await Client.Download.GetAssetDigest();
-            await Client.Download.GetItemTemplates();
+            APIConfiguration.Logger.LogDebug("GetPlayer done.");
+            await RandomHelper.RandomDelay(10000).ConfigureAwait(false);
 
-            await Client.Player.GetPlayerProfile();
+            await Client.Download.GetRemoteConfigVersion().ConfigureAwait(false);
+            APIConfiguration.Logger.LogDebug("GetRemoteConfigVersion done.");
+            await RandomHelper.RandomDelay(300).ConfigureAwait(false);
+
+            //var getAssetDigest = await Client.Download.GetAssetDigest().ConfigureAwait(false);
+            //Client.PageOffset = getAssetDigest.PageOffset;
+            await Client.Download.GetAssetDigest().ConfigureAwait(false);
+            APIConfiguration.Logger.LogDebug("GetAssetDigest done.");
+            await RandomHelper.RandomDelay(300).ConfigureAwait(false);
+
+            //var getItemTemplates = await Client.Download.GetItemTemplates().ConfigureAwait(false);
+            //Client.PageOffset = getItemTemplates.PageOffset;
+            await Client.Download.GetItemTemplates().ConfigureAwait(false);
+            APIConfiguration.Logger.LogDebug("GetItemTemplates done.");
+            await RandomHelper.RandomDelay(300).ConfigureAwait(false);
+
+            //Need get storeitems
+
+            //New on protos:
+            var ids = await Client.Misc.FetchAllNews().ConfigureAwait(false);
+            var newids = new RepeatedField<string>();
+            foreach (var id in ids.CurrentNews.NewsArticles)
+                newids.Add(id.Id);
+            APIConfiguration.Logger.LogDebug("FetchAllNews done.");
+            await RandomHelper.RandomDelay(300).ConfigureAwait(false);
+            await Client.Misc.MarkReadNewsArticle(newids).ConfigureAwait(false);
+            APIConfiguration.Logger.LogDebug("MarkReadNewsArticle done.");
+            await RandomHelper.RandomDelay(300).ConfigureAwait(false);
+
+            await Client.Player.GetPlayerProfile().ConfigureAwait(false);
+            APIConfiguration.Logger.LogDebug("GetPlayerProfile done.");
+            await RandomHelper.RandomDelay(300).ConfigureAwait(false);
+
+            GetInboxResponse req = await Client.Misc.GetInbox(true, false, 0L).ConfigureAwait(false);
+            CommonRequest.ProcessGetInboxResponse(Client, req);
+            await RandomHelper.RandomDelay(300).ConfigureAwait(false);
 
             return player;
         }

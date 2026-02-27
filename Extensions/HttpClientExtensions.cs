@@ -1,7 +1,6 @@
 ﻿#region using directives
 
 using System;
-using System.Diagnostics;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -43,7 +42,7 @@ namespace PokemonGo.RocketAPI.Extensions
                 }
             }
 
-            ResponseEnvelope response = await PerformThrottledRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope);
+            ResponseEnvelope response = await PerformThrottledRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope).ConfigureAwait(false);
 
             if (response== null || (response.Returns.Count != requestEnvelope.Requests.Count))
                 throw new InvalidResponseException($"Error with API request type: {requestEnvelope.Requests[0].RequestType}");
@@ -62,7 +61,7 @@ namespace PokemonGo.RocketAPI.Extensions
             where TRequest : IMessage<TRequest>
             where TResponsePayload : IMessage<TResponsePayload>, new()
         {
-            ResponseEnvelope response = await PerformThrottledRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope);
+            ResponseEnvelope response = await PerformThrottledRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope).ConfigureAwait(false);
 
             if (response.Returns.Count != requestEnvelope.Requests.Count)
                 throw new InvalidResponseException($"Error with API request type: {requestEnvelope.Requests[0].RequestType}");
@@ -81,18 +80,18 @@ namespace PokemonGo.RocketAPI.Extensions
             RequestEnvelope requestEnvelope) where TRequest : IMessage<TRequest>
         {
             // Check killswitch from url before making API calls.
-            if (!apiClient.Settings.UseLegacyAPI)
-            {
+            //renamed to UseCustomAPI if (!apiClient.Settings.UseLegacyAPI)
+            //{
                 if (apiClient.CheckCurrentVersionOutdated())
                     throw new MinimumClientVersionException(apiClient.CurrentApiEmulationVersion, apiClient.MinimumClientVersion);
-            }
+            //}
 
             //Encode payload and put in envelop, then send
             var data = requestEnvelope.ToByteString();
-            var result = await client.PostAsync(apiClient.ApiUrl, new ByteArrayContent(data.ToByteArray()));
+            var result = await client.PostAsync(apiClient.ApiUrl, new ByteArrayContent(data.ToByteArray())).ConfigureAwait(false);
 
             //Decode message
-            var responseData = await result.Content.ReadAsByteArrayAsync();
+            var responseData = await result.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
             var codedStream = new CodedInputStream(responseData);
             ResponseEnvelope serverResponse = new ResponseEnvelope();
             serverResponse.MergeFrom(codedStream);
@@ -119,11 +118,11 @@ namespace PokemonGo.RocketAPI.Extensions
             switch (serverResponse.StatusCode)
             {
                 case ResponseEnvelope.Types.StatusCode.InvalidAuthToken:
-                    await apiClient.RequestBuilder.RegenerateRequestEnvelopeWithNewAccessToken(requestEnvelope);
-                    return await PerformRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope);
+                    await apiClient.RequestBuilder.RegenerateRequestEnvelopeWithNewAccessToken(requestEnvelope).ConfigureAwait(false);
+                    return await PerformRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope).ConfigureAwait(false);
                 case ResponseEnvelope.Types.StatusCode.Redirect:
                     // 53 means that the api_endpoint was not correctly set, should be at this point, though, so redo the request
-                    return await PerformRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope);
+                    return await PerformRemoteProcedureCall<TRequest>(client, apiClient, requestEnvelope).ConfigureAwait(false);
                 case ResponseEnvelope.Types.StatusCode.BadRequest:
                     // Your account may be banned! please try from the official client.
                     throw new APIBadRequestException("BAD REQUEST \r\n" + JsonConvert.SerializeObject(requestEnvelope));
@@ -138,7 +137,7 @@ namespace PokemonGo.RocketAPI.Extensions
                 case ResponseEnvelope.Types.StatusCode.InvalidPlatformRequest:
                     break;
                 case ResponseEnvelope.Types.StatusCode.SessionInvalidated:
-                    break;
+                    throw new SessionInvalidatedException("SESSION INVALIDATED EXCEPTION");
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -154,24 +153,24 @@ namespace PokemonGo.RocketAPI.Extensions
 
         public static async Task<ResponseEnvelope> PerformThrottledRemoteProcedureCall<TRequest>(this System.Net.Http.HttpClient client, Client apiClient, RequestEnvelope requestEnvelope) where TRequest : IMessage<TRequest>
         {
+#pragma warning disable IDE0018 // Inline variable declaration - Build.Bat Error Happens if We Do
             rpcQueue.Enqueue(requestEnvelope);
             var count = rpcQueue.Count;
+            RequestEnvelope r;
             ResponseEnvelope ret;
-
             try
             {
                 mutex.WaitOne();
-                RequestEnvelope r;
                 while (rpcQueue.TryDequeue(out r))
                 {
                     var diff = Math.Max(0, DateTime.Now.Millisecond - lastRpc);
                     if (diff < minDiff)
                     {
                         var delay = (minDiff - diff) + (int)(new Random().NextDouble() * 0); // Add some randomness
-                        await Task.Delay((int)(delay));
+                        await Task.Delay((int)(delay)).ConfigureAwait(false);
                     }
                     lastRpc = DateTime.Now.Millisecond;
-                    ResponseEnvelope response = await PerformRemoteProcedureCall<TRequest>(client, apiClient, r);
+                    ResponseEnvelope response = await PerformRemoteProcedureCall<TRequest>(client, apiClient, r).ConfigureAwait(false);
                     responses.GetOrAdd(r, response);
                 }
                 responses.TryRemove(requestEnvelope, out ret);
@@ -181,6 +180,7 @@ namespace PokemonGo.RocketAPI.Extensions
                 mutex.Release();
             }
             return ret;
+#pragma warning restore IDE0018 // Inline variable declaration - Build.Bat Error Happens if We Do
         }
     }
 }

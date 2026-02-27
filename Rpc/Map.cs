@@ -7,8 +7,8 @@ using PokemonGo.RocketAPI.Helpers;
 using POGOProtos.Networking.Requests;
 using POGOProtos.Networking.Requests.Messages;
 using POGOProtos.Networking.Responses;
-using GeoCoordinatePortable;
 using System.Linq;
+using GeoCoordinatePortable;
 
 #endregion
 
@@ -81,17 +81,13 @@ namespace PokemonGo.RocketAPI.Rpc
                 //wait until get map available
                 if (t > 0)
                 {
-                    await Task.Delay(t);
+                    await Task.Delay(t).ConfigureAwait(false);
                 }
             }
             if (!CanRefreshMap())
             {
-                if (force)
-                {
-                    return await GetMapObjects(force, updateCache);
-                }
+                return force ? await GetMapObjects(force, updateCache).ConfigureAwait(false) : LastGetMapObjectResponse;
                 // If we cannot refresh the map, return the cached response.
-                return LastGetMapObjectResponse;
             }
 
             var lat = Client.CurrentLatitude;
@@ -111,16 +107,16 @@ namespace PokemonGo.RocketAPI.Rpc
                 RequestMessage = getMapObjectsMessage.ToByteString()
             };
 
-            var request = await GetRequestBuilder().GetRequestEnvelope(CommonRequest.FillRequest(getMapObjectsRequest, Client));
+            var request = await GetRequestBuilder().GetRequestEnvelope(CommonRequest.FillRequest(getMapObjectsRequest, Client)).ConfigureAwait(false);
 
-            Tuple<GetMapObjectsResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse> response =
+            Tuple<GetMapObjectsResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetHoloInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse> response =
                 await
                     PostProtoPayload
-                        <Request, GetMapObjectsResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse,
-                            CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse>(request);
+                        <Request, GetMapObjectsResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetHoloInventoryResponse,
+                            CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse>(request).ConfigureAwait(false);
 
-            GetInventoryResponse getInventoryResponse = response.Item4;
-            CommonRequest.ProcessGetInventoryResponse(Client, getInventoryResponse);
+            GetHoloInventoryResponse getHoloInventoryResponse = response.Item4;
+            CommonRequest.ProcessGetHoloInventoryResponse(Client, getHoloInventoryResponse);
 
             DownloadSettingsResponse downloadSettingsResponse = response.Item6;
             CommonRequest.ProcessDownloadSettingsResponse(Client, downloadSettingsResponse);
@@ -130,12 +126,17 @@ namespace PokemonGo.RocketAPI.Rpc
 
             LastRpcMapObjectsRequestMs = Util.TimeUtil.GetCurrentTimestampInMilliseconds();
 
+            var numCells = response.Item1.MapCells.Count;
+            var numCellsWithForts = response.Item1.MapCells.Count(x => x.Forts.Count > 0);
+            var numCellsWithNearbyPokemon = response.Item1.MapCells.Count(x => x.NearbyPokemons.Count > 0);
+            var numCellsWithWildPokemon = response.Item1.MapCells.Count(x => x.WildPokemons.Count > 0);
+
             // Only cache good responses
             if (updateCache &&
-                response.Item1.MapCells.Count > 0 &&
-                (response.Item1.MapCells.Where(x => x.Forts.Count > 0).Count() > 0 ||
-                 response.Item1.MapCells.Where(x => x.NearbyPokemons.Count > 0).Count() > 0 ||
-                 response.Item1.MapCells.Where(x => x.WildPokemons.Count > 0).Count() > 0))
+                numCells > 0 &&
+                (numCellsWithForts > 0 ||
+                numCellsWithNearbyPokemon > 0 ||
+                numCellsWithWildPokemon > 0))
             {
                 // Good map response since we got at least a fort or pokemon in our cells.
                 LastGetMapObjectResponse = response.Item1;
@@ -163,19 +164,19 @@ namespace PokemonGo.RocketAPI.Rpc
                 }).ToByteString()
             };
 
-            var request = await GetRequestBuilder().GetRequestEnvelope(CommonRequest.FillRequest(getIncensePokemonsRequest, Client));
+            var request = await GetRequestBuilder().GetRequestEnvelope(CommonRequest.FillRequest(getIncensePokemonsRequest, Client)).ConfigureAwait(false);
 
-            Tuple<GetIncensePokemonResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse> response =
+            Tuple<GetIncensePokemonResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetHoloInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse> response =
                 await
                     PostProtoPayload
-                        <Request, GetIncensePokemonResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse,
-                            CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse>(request);
+                        <Request, GetIncensePokemonResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetHoloInventoryResponse,
+                            CheckAwardedBadgesResponse, DownloadSettingsResponse, GetBuddyWalkedResponse>(request).ConfigureAwait(false);
 
             CheckChallengeResponse checkChallengeResponse = response.Item2;
             CommonRequest.ProcessCheckChallengeResponse(Client, checkChallengeResponse);
 
-            GetInventoryResponse getInventoryResponse = response.Item4;
-            CommonRequest.ProcessGetInventoryResponse(Client, getInventoryResponse);
+            GetHoloInventoryResponse getHoloInventoryResponse = response.Item4;
+            CommonRequest.ProcessGetHoloInventoryResponse(Client, getHoloInventoryResponse);
 
             DownloadSettingsResponse downloadSettingsResponse = response.Item6;
             CommonRequest.ProcessDownloadSettingsResponse(Client, downloadSettingsResponse);

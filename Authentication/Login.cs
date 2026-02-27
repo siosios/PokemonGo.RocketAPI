@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Threading.Tasks;
-using GeoCoordinatePortable;
 using static POGOProtos.Networking.Envelopes.Signature.Types;
 using PokemonGo.RocketAPI.Authentication.Data;
-using PokemonGo.RocketAPI.Authentication;
 using PokemonGo.RocketAPI.LoginProviders;
+using GeoCoordinatePortable;
 
 namespace PokemonGo.RocketAPI.Authentication
 {
@@ -40,7 +39,7 @@ namespace PokemonGo.RocketAPI.Authentication
         /// <returns></returns>
         public static async Task<Session> GetSession(ILoginProvider loginProvider, double initialLatitude, double initialLongitude, DeviceInfo deviceInfo = null)
         {
-            return new Session(loginProvider, await loginProvider.GetAccessToken(), new GeoCoordinate(initialLatitude, initialLongitude), deviceInfo);
+            return new Session(loginProvider, await loginProvider.GetAccessToken().ConfigureAwait(false), new GeoCoordinate(initialLatitude, initialLongitude), deviceInfo);
         }
 
         /// <summary>
@@ -71,7 +70,7 @@ namespace PokemonGo.RocketAPI.Authentication
         /// <returns></returns>
         public static async Task<Session> GetSession(ILoginProvider loginProvider, GeoCoordinate coordinate, DeviceInfo deviceInfo = null)
         {
-            return new Session(loginProvider, await loginProvider.GetAccessToken(), coordinate, deviceInfo);
+            return new Session(loginProvider, await loginProvider.GetAccessToken().ConfigureAwait(false), coordinate, deviceInfo);
         }
         
     }
